@@ -6,8 +6,11 @@ The ages and prices of 123 Mazda cars were collected from the Melbourne Age news
 to learn about Mazda prices, and how they decrease with age.
 
 ## DATA:
-| Price | Price in Australian \$. |
-| Year  | Year of manufacture (note that 1990 = 90). |
+
+| Variable | Description |
+|----------|-------------|
+| Price | Price in Australian $. |
+| Year | Year of manufacture (note that 1990 = 90). |
 
 
 
