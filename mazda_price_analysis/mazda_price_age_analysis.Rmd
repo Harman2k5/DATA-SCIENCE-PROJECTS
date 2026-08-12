@@ -1,6 +1,5 @@
 ---
 title: "Mazda Used Car Price Analysis"
-author: "Your Name"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 output:
   html_document:
