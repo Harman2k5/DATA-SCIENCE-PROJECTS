@@ -13,8 +13,8 @@ to learn about Mazda prices, and how they decrease with age.
 | Year | Year of manufacture (note that 1990 = 90). |
 
 
-
 ## Question of Interest
 We want to see how Mazda car prices decrease with age?
 
-
+This analysis was done in R.
+The main analysis can be found in `mazda_price_age.Rmd`
