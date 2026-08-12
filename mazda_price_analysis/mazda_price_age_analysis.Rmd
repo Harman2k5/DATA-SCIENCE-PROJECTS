@@ -1,0 +1,381 @@
+---
+title: "Mazda Used Car Price Analysis"
+author: "Your Name"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+    css: portfolio.css
+
+---
+
+  
+  
+# 1. Project Overview
+  
+  This project investigates the relationship between **Mazda vehicle age** and **price** using linear regression.
+
+The analysis has two main goals:
+  
+  1. Examine the relationship between vehicle age and price on the original price scale.
+2. Model price on the **logarithmic scale** to investigate whether a multiplicative relationship provides a better representation of the data.
+
+The dataset contains vehicle prices and manufacturing years. In the original dataset, the year is recorded using the convention that **1990 is represented as 90**.
+
+# 2. Load Required Packages
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+```
+
+The `tidyverse` package is used for data manipulation and visualisation.
+
+# 3. Import the Data
+
+```{r import-data}
+Mazda_df_1 <- read.table(
+  "mazda-1.txt",
+  header = TRUE
+)
+
+head(Mazda_df_1)
+```
+
+The data are imported from `mazda-1.txt` and the first few observations are inspected to confirm that the import was successful.
+
+# 4. Data Preparation
+
+## 4.1 Create Vehicle Age
+
+The dataset records manufacturing year using values such as `90` for 1990. Therefore, vehicle age is calculated as:
+  
+$$
+  \text{Age} = 91 - \text{Year}.
+$$
+  
+```{r create-age}
+Mazda_df_2 <- Mazda_df_1 %>%
+  mutate(age = 91 - year)
+
+head(Mazda_df_2)
+
+```
+
+For example, a vehicle with `year = 90` is treated as having an age of 1 under this definition.
+
+## 4.2 Examine Price Against Age
+
+```{r price-age-plot, fig.width=7, fig.height=5}
+Mazda_df_2 %>%
+  ggplot(aes(x = age, y = price)) +
+  geom_point() +
+  labs(
+    title = "Mazda Price vs Vehicle Age",
+    x = "Vehicle age",
+    y = "Price (Australian $)"
+  ) +
+  theme_minimal()
+```
+
+The scatter plot gives an initial view of the relationship between vehicle age and price. We look for evidence that the relationship is approximately linear and whether the variability in price changes with age.
+
+# 5. Log Transformation of Price
+
+Vehicle price data are often right-skewed and may show greater variability at higher price levels. To investigate whether a logarithmic transformation is more appropriate, a new response variable is created:
+  
+$$
+  \log(\text{Price}).
+$$
+  
+```{r log-price}
+Mazda_df_2 <- Mazda_df_2 %>%
+  mutate(log_price = log(price))
+
+head(Mazda_df_2)
+```
+
+The transformed relationship is then visualised.
+
+```{r log-price-age-plot, fig.width=7, fig.height=5}
+Mazda_df_2 %>%
+  ggplot(aes(x = age, y = log_price)) +
+  geom_point() +
+  labs(
+    title = "Log Price vs Vehicle Age",
+    x = "Vehicle age",
+    y = "Log price"
+  ) +
+  theme_minimal()
+```
+
+Using log-price can make the relationship easier to model when changes are better understood in relative or percentage terms rather than absolute dollar amounts.
+
+# 6. Linear Model: Price on the Original Scale
+
+First, a simple linear regression model is fitted using the original price as the response:
+  
+$$
+  \text{Price}_i = \beta_0 + \beta_1\text{Age}_i + \epsilon_i.
+$$
+
+```{r linear-model-price}
+price_age_fit <- lm(price ~ age, data = Mazda_df_2)
+
+coef(price_age_fit)
+summary(price_age_fit)
+```
+
+The coefficient for `age` estimates the average change in price associated with a one-year increase in vehicle age.
+
+A negative age coefficient would indicate that older vehicles tend to have lower prices on average. The intercept represents the modelled price at `age = 0`; its practical interpretation depends on whether age 0 is relevant to the observed data.
+
+# 7. Linear Model: Log Price
+
+A second model uses log-price as the response:
+  
+$$
+  \log(\text{Price}_i) = \beta_0 + \beta_1\text{Age}_i + \epsilon_i.
+$$
+  
+```{r linear-model-log-price}
+price_age_log_fit <- lm(log_price ~ age, data = Mazda_df_2)
+
+coef(price_age_log_fit)
+summary(price_age_log_fit)
+```
+
+## Interpreting the Age Coefficient
+
+Because the response is on the log scale, the age coefficient has a multiplicative interpretation.
+
+For an estimated coefficient $\hat{\beta}_1$, the exact proportional change associated with a one-year increase in age is:
+  
+$$
+  e^{\hat{\beta}_1}.
+$$
+  
+The corresponding percentage change is:
+  
+$$
+  100\left(e^{\hat{\beta}_1}-1\right)\%.
+$$
+  
+For example, if the estimated coefficient were `-0.10`, the associated percentage change would be approximately:
+  
+$$
+  100(e^{-0.10}-1) \approx -9.5\%.
+$$
+  
+This example is only an illustration of interpretation; the actual conclusion should be based on the coefficient estimated from the dataset.
+
+# 8. Visualise the Fitted Regression Line
+
+The fitted log-price relationship can be shown directly on the scatter plot.
+
+```{r fitted-line, fig.width=7, fig.height=5}
+Mazda_df_2 %>%
+  ggplot(aes(x = age, y = log_price)) +
+  geom_point() +
+  geom_smooth(
+    method = "lm",
+    se = TRUE
+  ) +
+  labs(
+    title = "Linear Regression of Log Price on Vehicle Age",
+    x = "Vehicle age",
+    y = "Log price"
+  ) +
+  theme_minimal()
+```
+
+The fitted line represents the estimated mean log-price for each vehicle age, while the shaded region represents the model-based confidence band around the fitted mean.
+
+# 9. Model Diagnostics
+
+Regression assumptions should be assessed using the fitted model's residuals and diagnostic plots.
+
+The standard diagnostic plots for the log-price model are produced below.
+
+```{r diagnostic-plots, fig.width=8, fig.height=8}
+par(mfrow = c(2, 2))
+plot(price_age_log_fit)
+par(mfrow = c(1, 1))
+```
+
+These plots help assess:
+
+- linearity,
+- constant variance,
+- approximate normality of residuals,
+- and influential observations.
+
+# 10. Residual Histogram
+
+```{r residual-histogram, fig.width=7, fig.height=5}
+ggplot(
+  data.frame(residuals = residuals(price_age_log_fit)),
+  aes(x = residuals)
+) +
+  geom_histogram(bins = 15) +
+  labs(
+    title = "Histogram of Residuals",
+    x = "Residual",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+```
+
+A roughly symmetric, bell-shaped distribution is consistent with approximately normal residuals. The histogram is useful for an overall visual assessment, but it should be considered alongside the Normal Q-Q plot.
+
+# 11. Normal Q-Q Plot
+
+```{r qq-plot, fig.width=7, fig.height=5}
+ggplot(
+  data.frame(residuals = residuals(price_age_log_fit)),
+  aes(sample = residuals)
+) +
+  stat_qq() +
+  stat_qq_line() +
+  labs(
+    title = "Normal Q-Q Plot of Residuals"
+  ) +
+  theme_minimal()
+```
+
+If the points lie approximately along the reference line, the residuals are reasonably consistent with a normal distribution. Large systematic departures from the line, particularly in the tails, may indicate departures from normality.
+
+# 12. Residuals vs Fitted Values
+
+```{r residual-fitted, fig.width=7, fig.height=5}
+ggplot(
+  data.frame(
+    fitted = fitted(price_age_log_fit),
+    residuals = residuals(price_age_log_fit)
+  ),
+  aes(x = fitted, y = residuals)
+) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Residuals vs Fitted Values",
+    x = "Fitted log price",
+    y = "Residual"
+  ) +
+  theme_minimal()
+```
+
+For a suitable linear model, residuals should be scattered around zero without a strong systematic pattern.
+
+A curved pattern may suggest that the relationship is not adequately described by a straight line. A funnel-shaped pattern may indicate non-constant variance.
+
+# 13. Cook's Distance
+
+Cook's distance measures how strongly each observation influences the fitted regression model.
+
+```{r cooks-distance, fig.width=7, fig.height=5}
+cooks_distance <- cooks.distance(price_age_log_fit)
+
+plot(
+  cooks_distance,
+  type = "h",
+  xlab = "Observation",
+  ylab = "Cook's distance",
+  main = "Cook's Distance"
+)
+```
+
+A common screening rule is:
+
+$$
+D_i > \frac{4}{n},
+$$
+
+where $n$ is the number of observations. This is a rule of thumb rather than a strict cutoff.
+
+```{r influential-observations}
+cook_threshold <- 4 / nrow(Mazda_df_2)
+
+which(cooks_distance > cook_threshold)
+```
+
+The observations identified above should be investigated rather than automatically removed. A high Cook's distance may indicate that an observation has unusual leverage, a large residual, or both.
+
+To inspect the corresponding records:
+  
+```{r influential-values}
+influential_rows <- which(cooks_distance > cook_threshold)
+
+Mazda_df_2[influential_rows, ]
+```
+
+# 14. Model Comparison
+
+The two models use different response scales:
+  
+- `price ~ age` models price directly.
+- `log_price ~ age` models the logarithm of price.
+
+Their coefficients therefore have different interpretations. Model choice should not be based on coefficient magnitude alone.
+
+```{r model-comparison}
+summary(price_age_fit)
+summary(price_age_log_fit)
+# Confidence intervals for model coefficients
+log_scale_ci <- confint(price_age_log_fit)
+
+# Back-transform from log scale to multiplicative scale
+backtransformed_ci <- exp(log_scale_ci)
+
+# Convert multiplicative effects to percentage differences
+percentage_ci <- 100 * (backtransformed_ci - 1)
+
+log_scale_ci
+backtransformed_ci
+percentage_ci
+```
+
+For this analysis, the log-price model is particularly useful when it provides a more appropriate residual structure and when a percentage-change interpretation is more meaningful than an absolute dollar change.
+
+# 15. Assumption Check Summary
+
+## Linearity
+
+The relationship between the predictor and the expected response should be approximately linear. This is assessed using the scatter plot and residuals-versus-fitted plot.
+
+## Independence
+
+The observations should be independently collected. This assumption depends primarily on how the data were obtained and cannot be established from a regression plot alone.
+
+## Constant Variance
+
+The spread of the residuals should remain reasonably stable across the fitted values. A strong funnel shape would suggest non-constant variance.
+
+## Normality of Residuals
+
+The residuals should be approximately normally distributed for the standard small-sample inference procedures used with linear regression. The Normal Q-Q plot is the main diagnostic here.
+
+## Influential Observations
+
+Observations with relatively large Cook's distance can have a substantial effect on the fitted model. Such observations should be examined individually before deciding whether any action is appropriate.
+
+# 16. Conclusion
+
+This analysis investigates the association between Mazda vehicle age and price using simple linear regression.
+
+Two response scales were considered: the original price scale and the logarithmic price scale. The log transformation provides a useful alternative when price is skewed, when the variability increases with the level of price, or when a multiplicative interpretation is scientifically more appropriate.
+
+The final model should be selected using the combination of statistical evidence, model diagnostics, interpretability, and the substantive context of the data rather than a single diagnostic or numerical criterion.
+
+# Executive summary
+
+* There was a clear evidence the price of the cars were exponentially decreasing as the cars got older (P-value ~ 0).
+
+* We estimate that the median price of Mazda cars (in 1991) was between A\$23600 to A\$30,400(to the nearest A\$100).
+
+* We estimate that each additional year in the age results in depreciation of between 13.9% to 16.3%.
+
+```{r}
+formula(price_age_log_fit)
+```
